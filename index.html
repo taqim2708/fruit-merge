@@ -5,22 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <!-- SEO Meta Tags -->
-    <title>Fruit Merge Master ✨ AI-Powered Physics Puzzle</title>
-    <meta name="description" content="Play Fruit Merge Master, an addictive AI-enhanced physics puzzle game. Merge fruits, reach the watermelon, and get strategic AI hints!">
-    <meta name="keywords" content="fruit merge, suika game, physics puzzle, AI game, web game, casual game">
-    <link rel="canonical" href="https://yourusername.github.io/your-repo-name/">
+    <title>Fruit Merge Master ✨ Physics Puzzle</title>
+    <meta name="description" content="Play Fruit Merge Master, an addictive physics puzzle game. Merge fruits and reach the watermelon!">
+    <meta name="keywords" content="fruit merge, suika game, physics puzzle, web game, casual game">
+    <link rel="canonical" href="https://taqim2708.github.io/fruit-merge/">
     
     <!-- Social Media Meta Tags (Open Graph) -->
-    <meta property="og:title" content="Fruit Merge Master ✨ AI Edition">
-    <meta property="og:description" content="Can you merge your way to the Watermelon? Get AI-powered tips in this fun physics puzzle.">
+    <meta property="og:title" content="Fruit Merge Master ✨">
+    <meta property="og:description" content="Can you merge your way to the Watermelon?">
     <meta property="og:type" content="website">
+    <meta property="og:url" content="https://taqim2708.github.io/fruit-merge/">
     
     <style>
         :root {
             --bg-color: #fef9e7;
             --panel-color: #ffffff;
             --accent-color: #5d4037;
-            --ai-color: #8e44ad;
             --danger-color: #ff3e3e;
         }
 
@@ -68,7 +68,6 @@
             border: 3px solid var(--accent-color);
         }
 
-        /* Evolution Guide Styles */
         .evolution-guide {
             width: 100%;
             background: var(--panel-color);
@@ -144,40 +143,6 @@
             padding: 20px;
         }
 
-        .ai-controls {
-            width: 100%;
-            display: flex;
-            gap: 10px;
-            margin-top: 5px;
-        }
-
-        .ai-btn {
-            flex: 1;
-            background: var(--ai-color);
-            color: white;
-            border: none;
-            padding: 8px;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            transition: all 0.2s;
-        }
-
-        .ai-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        .ai-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            filter: brightness(1.1);
-        }
-
         .btn {
             background: #ffcc00;
             border: none;
@@ -191,24 +156,6 @@
             transition: transform 0.2s;
         }
 
-        #ai-message-box {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: white;
-            border: 2px solid var(--ai-color);
-            padding: 10px 15px;
-            border-radius: 12px;
-            font-size: 12px;
-            width: 80%;
-            display: none;
-            z-index: 5;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            color: #333;
-        }
-
-        /* Responsive scaling */
         @media (max-height: 800px) {
             #game-wrapper {
                 transform: scale(0.8);
@@ -234,17 +181,10 @@
         </div>
     </div>
 
-    <div class="ai-controls">
-        <button id="ai-hint-btn" class="ai-btn">✨ Get Strategy Hint</button>
-        <button id="ai-fortune-btn" class="ai-btn">✨ Fruit Fortune</button>
-    </div>
-
     <div id="game-container">
-        <div id="ai-message-box"></div>
         <div id="game-over-overlay">
             <h1 style="font-size: 40px; margin-bottom: 5px;">Game Over!</h1>
             <p id="final-score-text">Final Score: 0</p>
-            <p id="ai-obit-text" style="font-style: italic; font-size: 14px; color: #ddd; margin-top: 10px;"></p>
             <button class="btn" onclick="resetGame()">Try Again</button>
         </div>
     </div>
@@ -255,34 +195,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 
 <script>
-    // --- GEMINI API CONFIG ---
-    const apiKey = ""; // Provided by environment
-    
-    async function callGemini(prompt, systemPrompt = "You are a helpful gaming assistant for a fruit merging game (like Suika). Keep responses very brief (max 15 words).") {
-        let lastError;
-        for (let i = 0; i < 5; i++) {
-            try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }],
-                        systemInstruction: { parts: [{ text: systemPrompt }] }
-                    })
-                });
-                
-                if (!response.ok) throw new Error(`API Error: ${response.status}`);
-                const data = await response.json();
-                return data.candidates?.[0]?.content?.parts?.[0]?.text;
-            } catch (err) {
-                lastError = err;
-                await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
-            }
-        }
-        showAiMessage("✨ Oops! AI is feeling shy. Try again later.");
-        throw lastError;
-    }
-
     // --- CONFIGURATION ---
     const WIDTH = 400;
     const HEIGHT = 600;
@@ -320,10 +232,6 @@
     const nextPreviewEl = document.getElementById('next-fruit-preview');
     const overlay = document.getElementById('game-over-overlay');
     const finalScoreText = document.getElementById('final-score-text');
-    const aiMessageBox = document.getElementById('ai-message-box');
-    const aiHintBtn = document.getElementById('ai-hint-btn');
-    const aiFortuneBtn = document.getElementById('ai-fortune-btn');
-    const aiObitText = document.getElementById('ai-obit-text');
 
     // --- STATE ---
     let currentFruit = null;
@@ -338,6 +246,7 @@
 
     function initGuide() {
         const guideEl = document.getElementById('evolution-guide');
+        guideEl.innerHTML = ''; // Clear previous
         FRUITS.forEach((fruit, index) => {
             const item = document.createElement('div');
             item.className = 'evolution-item';
@@ -346,41 +255,6 @@
             guideEl.appendChild(item);
         });
     }
-
-    function showAiMessage(text) {
-        aiMessageBox.innerText = text;
-        aiMessageBox.style.display = 'block';
-        setTimeout(() => { aiMessageBox.style.display = 'none'; }, 4000);
-    }
-
-    // --- AI FEATURE LOGIC ---
-    aiHintBtn.onclick = async () => {
-        aiHintBtn.disabled = true;
-        const nextFruit = FRUITS[nextFruitIndex];
-        const bodies = Composite.allBodies(world).filter(b => b.fruitIndex !== undefined);
-        const fruitSummary = bodies.map(b => FRUITS[b.fruitIndex].name).join(", ");
-        
-        const prompt = `I am playing a fruit merge game. My next fruit is a ${nextFruit.name}. The board currently has these fruits: ${fruitSummary || 'none'}. Give me one quick tip on where to drop it.`;
-        
-        try {
-            const hint = await callGemini(prompt);
-            showAiMessage("✨ Hint: " + hint);
-        } catch (e) {} finally {
-            setTimeout(() => { aiHintBtn.disabled = false; }, 10000);
-        }
-    };
-
-    aiFortuneBtn.onclick = async () => {
-        aiFortuneBtn.disabled = true;
-        const prompt = `Give me a funny "Fruit Fortune" based on my current score of ${score} and high score of ${bestScore}. Use fruit puns.`;
-        
-        try {
-            const fortune = await callGemini(prompt);
-            showAiMessage("✨ Fortune: " + fortune);
-        } catch (e) {} finally {
-            setTimeout(() => { aiFortuneBtn.disabled = false; }, 30000);
-        }
-    };
 
     // --- CORE GAME ENGINE ---
     function createWalls() {
@@ -414,20 +288,20 @@
                 const angle = body.angle;
                 const fruit = FRUITS[body.fruitIndex];
                 
-                // Determine if fruit is in danger zone
-                const isDanger = !body.isStatic && (y - fruit.radius < LOSS_THRESHOLD_Y);
+                // FIXED: Only check danger for fruits that aren't the one currently being held/dragged
+                // and have been dropping for a moment (velocity check or static check)
+                const isActiveInStack = !body.isStatic && body !== currentFruit && body.droppedAt && (Date.now() - body.droppedAt > 1000);
+                const isDanger = isActiveInStack && (y - fruit.radius < LOSS_THRESHOLD_Y);
                 
                 context.save();
                 context.translate(x, y);
                 context.rotate(angle);
                 
-                // Draw circle background
                 context.beginPath();
                 context.arc(0, 0, fruit.radius, 0, Math.PI * 2);
                 
-                // Color change logic for danger zone
                 if (isDanger) {
-                    context.fillStyle = '#ff3e3e'; // Flash red
+                    context.fillStyle = '#ff3e3e';
                     context.strokeStyle = '#fff';
                     context.lineWidth = 4;
                 } else {
@@ -439,7 +313,6 @@
                 context.fill();
                 context.stroke();
 
-                // Draw Emoji
                 context.font = `${fruit.radius * 1.3}px Arial`;
                 context.textAlign = 'center';
                 context.textBaseline = 'middle';
@@ -449,7 +322,7 @@
             }
         });
 
-        // Draw the loss threshold line
+        // Draw Loss Line
         context.beginPath();
         context.setLineDash([10, 10]);
         context.moveTo(0, LOSS_THRESHOLD_Y);
@@ -466,6 +339,8 @@
             restitution: 0.3, friction: 0.1, isStatic, isSensor: isStatic, label: 'fruit', render: { visible: false }
         });
         fruit.fruitIndex = index;
+        // Mark merged fruits as already "dropped" so they can be checked for height immediately
+        if (!isStatic) fruit.droppedAt = Date.now(); 
         return fruit;
     }
 
@@ -492,6 +367,7 @@
         if (!currentFruit || !canDrop || isGameOver) return;
         canDrop = false;
         currentFruit.isSensor = false;
+        currentFruit.droppedAt = Date.now(); // Record when it was released
         Body.setStatic(currentFruit, false);
         currentFruit = null;
         setTimeout(spawnCurrentFruit, 800);
@@ -526,7 +402,7 @@
 
     Events.on(engine, 'afterUpdate', () => {
         if (isGameOver) return;
-        const bodies = Composite.allBodies(world).filter(b => b.fruitIndex !== undefined && !b.isStatic);
+        const bodies = Composite.allBodies(world).filter(b => b.fruitIndex !== undefined && !b.isStatic && b.droppedAt && (Date.now() - b.droppedAt > 1500));
         const fruitAboveLine = bodies.some(b => b.position.y - FRUITS[b.fruitIndex].radius < LOSS_THRESHOLD_Y);
         if (fruitAboveLine) {
             if (!gameOverCheckStartTime) gameOverCheckStartTime = Date.now();
@@ -534,15 +410,10 @@
         } else gameOverCheckStartTime = null;
     });
 
-    async function triggerGameOver() {
+    function triggerGameOver() {
         isGameOver = true;
         overlay.style.display = 'flex';
         finalScoreText.innerText = `Final Score: ${score}`;
-        
-        try {
-            const obit = await callGemini(`The player just lost a fruit merging game with a score of ${score}. Write a one-sentence witty mock-obituary or consolation for the fruit.`);
-            aiObitText.innerText = obit;
-        } catch (e) {}
     }
 
     function resetGame() {
@@ -553,7 +424,6 @@
         isGameOver = false;
         gameOverCheckStartTime = null;
         overlay.style.display = 'none';
-        aiObitText.innerText = "";
         spawnCurrentFruit();
     }
 
