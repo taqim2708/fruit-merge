@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fruit Merge Master ✨ AI Edition</title>
+    <style>
+        :root {
+            --bg-color: #fef9e7;
+            --panel-color: #ffffff;
+            --accent-color: #5d4037;
+            --ai-color: #8e44ad;
+            --danger-color: #ff3e3e;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #game-wrapper {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            border-radius: 0 0 12px 12px;
+            background: #fff8dc;
+            overflow: hidden;
+            border: 4px solid var(--accent-color);
+            border-top: none;
+        }
+
+        .ui-container {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--panel-color);
+            padding: 10px 15px;
+            border-radius: 12px;
+            box-sizing: border-box;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 3px solid var(--accent-color);
+        }
+
+        /* Evolution Guide Styles */
+        .evolution-guide {
+            width: 100%;
+            background: var(--panel-color);
+            padding: 8px;
+            border-radius: 12px;
+            border: 3px solid var(--accent-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+            box-sizing: border-box;
+            overflow-x: auto;
+        }
+
+        .evolution-item {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 16px;
+        }
+
+        .arrow {
+            font-size: 10px;
+            color: #aaa;
+            font-weight: bold;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--accent-color);
+        }
+
+        #next-fruit-preview {
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f0f0f0;
+            border-radius: 50%;
+        }
+
+        #game-over-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 10;
+            border-radius: 8px;
+            backdrop-filter: blur(4px);
+            text-align: center;
+            padding: 20px;
+        }
+
+        .ai-controls {
+            width: 100%;
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .ai-btn {
+            flex: 1;
+            background: var(--ai-color);
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+
+        .ai-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .ai-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+
+        .btn {
+            background: #ffcc00;
+            border: none;
+            padding: 12px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-top: 20px;
+            color: #333;
+            transition: transform 0.2s;
+        }
+
+        #ai-message-box {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            border: 2px solid var(--ai-color);
+            padding: 10px 15px;
+            border-radius: 12px;
+            font-size: 12px;
+            width: 80%;
+            display: none;
+            z-index: 5;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            color: #333;
+        }
+
+        /* Responsive scaling */
+        @media (max-height: 800px) {
+            #game-wrapper {
+                transform: scale(0.8);
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <div class="ui-container">
+        <div class="stat">
+            <span class="stat-label">Score</span>
+            <span id="score" class="stat-value">0</span>
+        </div>
+        <div class="stat" style="align-items: center;">
+            <span class="stat-label">Next</span>
+            <div id="next-fruit-preview">🍒</div>
+        </div>
+        <div class="stat" style="align-items: flex-end;">
+            <span class="stat-label">Best</span>
+            <span id="best-score" class="stat-value">0</span>
+        </div>
+    </div>
+
+    <div class="ai-controls">
+        <button id="ai-hint-btn" class="ai-btn">✨ Get Strategy Hint</button>
+        <button id="ai-fortune-btn" class="ai-btn">✨ Fruit Fortune</button>
+    </div>
+
+    <div id="game-container">
+        <div id="ai-message-box"></div>
+        <div id="game-over-overlay">
+            <h1 style="font-size: 40px; margin-bottom: 5px;">Game Over!</h1>
+            <p id="final-score-text">Final Score: 0</p>
+            <p id="ai-obit-text" style="font-style: italic; font-size: 14px; color: #ddd; margin-top: 10px;"></p>
+            <button class="btn" onclick="resetGame()">Try Again</button>
+        </div>
+    </div>
+
+    <div class="evolution-guide" id="evolution-guide"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+
+<script>
+    // --- GEMINI API CONFIG ---
+    const apiKey = ""; // Provided by environment
+    
+    async function callGemini(prompt, systemPrompt = "You are a helpful gaming assistant for a fruit merging game (like Suika). Keep responses very brief (max 15 words).") {
+        let lastError;
+        for (let i = 0; i < 5; i++) {
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        systemInstruction: { parts: [{ text: systemPrompt }] }
+                    })
+                });
+                
+                if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                const data = await response.json();
+                return data.candidates?.[0]?.content?.parts?.[0]?.text;
+            } catch (err) {
+                lastError = err;
+                await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
+            }
+        }
+        showAiMessage("✨ Oops! AI is feeling shy. Try again later.");
+        throw lastError;
+    }
+
+    // --- CONFIGURATION ---
+    const WIDTH = 400;
+    const HEIGHT = 600;
+    const WALL_THICKNESS = 20;
+    const SPAWN_Y = 60;
+    const LOSS_THRESHOLD_Y = 110;
+
+    const FRUITS = [
+        { name: 'cherry', radius: 15, emoji: '🍒', score: 2, color: '#ff4d4d' },
+        { name: 'strawberry', radius: 22, emoji: '🍓', score: 4, color: '#ff7675' },
+        { name: 'grape', radius: 32, emoji: '🍇', score: 8, color: '#a29bfe' },
+        { name: 'dekopon', radius: 40, emoji: '🍊', score: 16, color: '#fab1a0' },
+        { name: 'persimmon', radius: 52, emoji: '🍅', score: 32, color: '#e17055' },
+        { name: 'apple', radius: 65, emoji: '🍎', score: 64, color: '#d63031' },
+        { name: 'pear', radius: 78, emoji: '🍐', score: 128, color: '#fdcb6e' },
+        { name: 'peach', radius: 92, emoji: '🍑', score: 256, color: '#ff7675' },
+        { name: 'pineapple', radius: 108, emoji: '🍍', score: 512, color: '#ffeaa7' },
+        { name: 'melon', radius: 125, emoji: '🍈', score: 1024, color: '#55efc4' },
+        { name: 'watermelon', radius: 145, emoji: '🍉', score: 2048, color: '#00b894' }
+    ];
+
+    const { Engine, Render, Runner, Bodies, Composite, Events, World, Body } = Matter;
+    const engine = Engine.create({ gravity: { y: 1.5 } });
+    const world = engine.world;
+
+    const render = Render.create({
+        element: document.getElementById('game-container'),
+        engine: engine,
+        options: { width: WIDTH, height: HEIGHT, wireframes: false, background: 'transparent' }
+    });
+
+    // --- UI ELEMENTS ---
+    const scoreEl = document.getElementById('score');
+    const bestScoreEl = document.getElementById('best-score');
+    const nextPreviewEl = document.getElementById('next-fruit-preview');
+    const overlay = document.getElementById('game-over-overlay');
+    const finalScoreText = document.getElementById('final-score-text');
+    const aiMessageBox = document.getElementById('ai-message-box');
+    const aiHintBtn = document.getElementById('ai-hint-btn');
+    const aiFortuneBtn = document.getElementById('ai-fortune-btn');
+    const aiObitText = document.getElementById('ai-obit-text');
+
+    // --- STATE ---
+    let currentFruit = null;
+    let nextFruitIndex = Math.floor(Math.random() * 4);
+    let canDrop = true;
+    let score = 0;
+    let bestScore = localStorage.getItem('fruit-merge-best') || 0;
+    let isGameOver = false;
+    let gameOverCheckStartTime = null;
+
+    bestScoreEl.innerText = bestScore;
+
+    function initGuide() {
+        const guideEl = document.getElementById('evolution-guide');
+        FRUITS.forEach((fruit, index) => {
+            const item = document.createElement('div');
+            item.className = 'evolution-item';
+            item.innerHTML = `<span>${fruit.emoji}</span>`;
+            if (index < FRUITS.length - 1) item.innerHTML += `<span class="arrow">▶</span>`;
+            guideEl.appendChild(item);
+        });
+    }
+
+    function showAiMessage(text) {
+        aiMessageBox.innerText = text;
+        aiMessageBox.style.display = 'block';
+        setTimeout(() => { aiMessageBox.style.display = 'none'; }, 4000);
+    }
+
+    // --- AI FEATURE LOGIC ---
+    aiHintBtn.onclick = async () => {
+        aiHintBtn.disabled = true;
+        const nextFruit = FRUITS[nextFruitIndex];
+        const bodies = Composite.allBodies(world).filter(b => b.fruitIndex !== undefined);
+        const fruitSummary = bodies.map(b => FRUITS[b.fruitIndex].name).join(", ");
+        
+        const prompt = `I am playing a fruit merge game. My next fruit is a ${nextFruit.name}. The board currently has these fruits: ${fruitSummary || 'none'}. Give me one quick tip on where to drop it.`;
+        
+        try {
+            const hint = await callGemini(prompt);
+            showAiMessage("✨ Hint: " + hint);
+        } catch (e) {} finally {
+            setTimeout(() => { aiHintBtn.disabled = false; }, 10000);
+        }
+    };
+
+    aiFortuneBtn.onclick = async () => {
+        aiFortuneBtn.disabled = true;
+        const prompt = `Give me a funny "Fruit Fortune" based on my current score of ${score} and high score of ${bestScore}. Use fruit puns.`;
+        
+        try {
+            const fortune = await callGemini(prompt);
+            showAiMessage("✨ Fortune: " + fortune);
+        } catch (e) {} finally {
+            setTimeout(() => { aiFortuneBtn.disabled = false; }, 30000);
+        }
+    };
+
+    // --- CORE GAME ENGINE ---
+    function createWalls() {
+        const wallOptions = { isStatic: true, render: { fillStyle: '#5d4037' }, restitution: 0.2 };
+        World.add(world, [
+            Bodies.rectangle(WIDTH/2, HEIGHT + 10, WIDTH, 40, wallOptions),
+            Bodies.rectangle(-10, HEIGHT/2, 20, HEIGHT, wallOptions),
+            Bodies.rectangle(WIDTH + 10, HEIGHT/2, 20, HEIGHT, wallOptions)
+        ]);
+    }
+
+    Events.on(render, 'afterRender', () => {
+        const context = render.context;
+        const bodies = Composite.allBodies(world);
+        
+        // Draw Drop Guideline
+        if (currentFruit && !isGameOver) {
+            context.beginPath();
+            context.setLineDash([5, 5]);
+            context.moveTo(currentFruit.position.x, SPAWN_Y);
+            context.lineTo(currentFruit.position.x, HEIGHT);
+            context.strokeStyle = 'rgba(93, 64, 55, 0.2)';
+            context.lineWidth = 2;
+            context.stroke();
+            context.setLineDash([]);
+        }
+
+        bodies.forEach(body => {
+            if (body.fruitIndex !== undefined) {
+                const { x, y } = body.position;
+                const angle = body.angle;
+                const fruit = FRUITS[body.fruitIndex];
+                
+                // Determine if fruit is in danger zone
+                const isDanger = !body.isStatic && (y - fruit.radius < LOSS_THRESHOLD_Y);
+                
+                context.save();
+                context.translate(x, y);
+                context.rotate(angle);
+                
+                // Draw circle background
+                context.beginPath();
+                context.arc(0, 0, fruit.radius, 0, Math.PI * 2);
+                
+                // Color change logic for danger zone
+                if (isDanger) {
+                    context.fillStyle = '#ff3e3e'; // Flash red
+                    context.strokeStyle = '#fff';
+                    context.lineWidth = 4;
+                } else {
+                    context.fillStyle = fruit.color;
+                    context.strokeStyle = 'rgba(255,255,255,0.3)';
+                    context.lineWidth = 3;
+                }
+                
+                context.fill();
+                context.stroke();
+
+                // Draw Emoji
+                context.font = `${fruit.radius * 1.3}px Arial`;
+                context.textAlign = 'center';
+                context.textBaseline = 'middle';
+                context.fillText(fruit.emoji, 0, 2);
+                
+                context.restore();
+            }
+        });
+
+        // Draw the loss threshold line
+        context.beginPath();
+        context.setLineDash([10, 10]);
+        context.moveTo(0, LOSS_THRESHOLD_Y);
+        context.lineTo(WIDTH, LOSS_THRESHOLD_Y);
+        context.strokeStyle = 'rgba(214, 48, 49, 0.8)';
+        context.lineWidth = 2;
+        context.stroke();
+        context.setLineDash([]);
+    });
+
+    function createFruit(x, y, index, isStatic = false) {
+        const fruitDef = FRUITS[index];
+        const fruit = Bodies.circle(x, y, fruitDef.radius, {
+            restitution: 0.3, friction: 0.1, isStatic, isSensor: isStatic, label: 'fruit', render: { visible: false }
+        });
+        fruit.fruitIndex = index;
+        return fruit;
+    }
+
+    function spawnCurrentFruit() {
+        if (isGameOver) return;
+        const index = nextFruitIndex;
+        nextFruitIndex = Math.floor(Math.random() * 4);
+        nextPreviewEl.innerText = FRUITS[nextFruitIndex].emoji;
+        currentFruit = createFruit(WIDTH / 2, SPAWN_Y, index, true);
+        World.add(world, currentFruit);
+        canDrop = true;
+    }
+
+    function handleInput(clientX) {
+        if (!currentFruit || !canDrop || isGameOver) return;
+        const rect = render.canvas.getBoundingClientRect();
+        let x = (clientX - rect.left) * (WIDTH / rect.width);
+        const radius = FRUITS[currentFruit.fruitIndex].radius;
+        x = Math.max(radius + 5, Math.min(WIDTH - radius - 5, x));
+        Body.setPosition(currentFruit, { x, y: SPAWN_Y });
+    }
+
+    function dropFruit() {
+        if (!currentFruit || !canDrop || isGameOver) return;
+        canDrop = false;
+        currentFruit.isSensor = false;
+        Body.setStatic(currentFruit, false);
+        currentFruit = null;
+        setTimeout(spawnCurrentFruit, 800);
+    }
+
+    render.canvas.addEventListener('mousemove', (e) => handleInput(e.clientX));
+    render.canvas.addEventListener('click', (e) => { handleInput(e.clientX); dropFruit(); });
+    render.canvas.addEventListener('touchstart', (e) => handleInput(e.touches[0].clientX), { passive: false });
+    render.canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleInput(e.touches[0].clientX); }, { passive: false });
+    render.canvas.addEventListener('touchend', dropFruit, { passive: false });
+
+    Events.on(engine, 'collisionStart', (event) => {
+        event.pairs.forEach(({ bodyA, bodyB }) => {
+            if (bodyA.fruitIndex !== undefined && bodyB.fruitIndex !== undefined && bodyA.fruitIndex === bodyB.fruitIndex) {
+                if (bodyA.fruitIndex >= FRUITS.length - 1) return;
+                if (!Composite.get(world, bodyA.id, 'body') || !Composite.get(world, bodyB.id, 'body')) return;
+                const nextIndex = bodyA.fruitIndex + 1;
+                const newX = (bodyA.position.x + bodyB.position.x) / 2;
+                const newY = (bodyA.position.y + bodyB.position.y) / 2;
+                World.remove(world, [bodyA, bodyB]);
+                World.add(world, createFruit(newX, newY, nextIndex));
+                score += FRUITS[nextIndex].score;
+                scoreEl.innerText = score;
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestScoreEl.innerText = bestScore;
+                    localStorage.setItem('fruit-merge-best', bestScore);
+                }
+            }
+        });
+    });
+
+    Events.on(engine, 'afterUpdate', () => {
+        if (isGameOver) return;
+        const bodies = Composite.allBodies(world).filter(b => b.fruitIndex !== undefined && !b.isStatic);
+        const fruitAboveLine = bodies.some(b => b.position.y - FRUITS[b.fruitIndex].radius < LOSS_THRESHOLD_Y);
+        if (fruitAboveLine) {
+            if (!gameOverCheckStartTime) gameOverCheckStartTime = Date.now();
+            else if (Date.now() - gameOverCheckStartTime > 2000) triggerGameOver();
+        } else gameOverCheckStartTime = null;
+    });
+
+    async function triggerGameOver() {
+        isGameOver = true;
+        overlay.style.display = 'flex';
+        finalScoreText.innerText = `Final Score: ${score}`;
+        
+        try {
+            const obit = await callGemini(`The player just lost a fruit merging game with a score of ${score}. Write a one-sentence witty mock-obituary or consolation for the fruit.`);
+            aiObitText.innerText = obit;
+        } catch (e) {}
+    }
+
+    function resetGame() {
+        World.clear(world, false);
+        createWalls();
+        score = 0;
+        scoreEl.innerText = '0';
+        isGameOver = false;
+        gameOverCheckStartTime = null;
+        overlay.style.display = 'none';
+        aiObitText.innerText = "";
+        spawnCurrentFruit();
+    }
+
+    initGuide();
+    createWalls();
+    Render.run(render);
+    Runner.run(Runner.create(), engine);
+    spawnCurrentFruit();
+</script>
+</body>
+</html>
