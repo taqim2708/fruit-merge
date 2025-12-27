@@ -3,25 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
-    <!-- SEO Meta Tags -->
-    <title>Fruit Merge Master ✨ Physics Puzzle</title>
-    <meta name="description" content="Play Fruit Merge Master, an addictive physics puzzle game. Merge fruits and reach the watermelon!">
-    <meta name="keywords" content="fruit merge, suika game, physics puzzle, web game, casual game">
-    <link rel="canonical" href="https://taqim2708.github.io/fruit-merge/">
-    
-    <!-- Social Media Meta Tags (Open Graph) -->
-    <meta property="og:title" content="Fruit Merge Master ✨">
-    <meta property="og:description" content="Can you merge your way to the Watermelon?">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://taqim2708.github.io/fruit-merge/">
-    
+    <title>Fruit Merge Master ✨ Golden Evolution</title>
     <style>
         :root {
             --bg-color: #fef9e7;
             --panel-color: #ffffff;
             --accent-color: #5d4037;
             --danger-color: #ff3e3e;
+            --gold-color: #ffd700;
         }
 
         body {
@@ -87,6 +76,12 @@
             align-items: center;
             gap: 2px;
             font-size: 16px;
+            opacity: 0.4;
+            transition: opacity 0.5s ease;
+        }
+
+        .evolution-item.discovered {
+            opacity: 1;
         }
 
         .arrow {
@@ -135,14 +130,13 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.8);
             display: none;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             color: white;
             z-index: 10;
-            border-radius: 8px;
             backdrop-filter: blur(4px);
             text-align: center;
             padding: 20px;
@@ -158,13 +152,6 @@
             cursor: pointer;
             margin-top: 20px;
             color: #333;
-            transition: transform 0.2s;
-        }
-
-        @media (max-height: 800px) {
-            #game-wrapper {
-                transform: scale(0.8);
-            }
         }
     </style>
 </head>
@@ -200,13 +187,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 
 <script>
-    // --- HELPER FOR SVG GENERATION ---
     function makeSvg(content) {
         return `data:image/svg+xml;base64,${btoa(`
         <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
             ${content}
         </svg>`)}`;
     }
+
 
     const ASSETS = {
         cherry: makeSvg(`
@@ -312,12 +299,6 @@
         `)
     };
 
-    // --- CONFIGURATION ---
-    const WIDTH = 400;
-    const HEIGHT = 600;
-    const SPAWN_Y = 60;
-    const LOSS_THRESHOLD_Y = 110;
-
     const FRUITS = [
         { name: 'cherry', radius: 15, customImg: ASSETS.cherry, score: 2, color: '#ff4d4d' },
         { name: 'strawberry', radius: 22, customImg: ASSETS.strawberry, score: 4, color: '#ff7675' },
@@ -332,8 +313,10 @@
         { name: 'watermelon', radius: 145, customImg: ASSETS.watermelon, score: 2048, color: '#00b894' }
     ];
 
+    const GOLD_FRUIT = { name: 'gold', radius: 60, customImg: ASSETS.gold, score: 5000, color: '#FFD700' };
+
     const imgCache = {};
-    FRUITS.forEach(f => {
+    [...FRUITS, GOLD_FRUIT].forEach(f => {
         const img = new Image();
         img.src = f.customImg;
         imgCache[f.name] = img;
@@ -342,6 +325,8 @@
     const { Engine, Render, Runner, Bodies, Composite, Events, World, Body } = Matter;
     const engine = Engine.create({ gravity: { y: 1.5 } });
     const world = engine.world;
+
+    const WIDTH = 400, HEIGHT = 600, SPAWN_Y = 60, LOSS_THRESHOLD_Y = 110;
 
     const render = Render.create({
         element: document.getElementById('game-container'),
@@ -355,117 +340,115 @@
     const overlay = document.getElementById('game-over-overlay');
     const finalScoreText = document.getElementById('final-score-text');
 
-    let currentFruit = null;
-    let nextFruitIndex = Math.floor(Math.random() * 4);
-    let canDrop = true;
-    let score = 0;
-    let bestScore = localStorage.getItem('fruit-merge-best') || 0;
-    let isGameOver = false;
-    let gameOverCheckStartTime = null;
-
+    let currentFruit = null, nextFruitIndex = 0, canDrop = true, score = 0, isGameOver = false;
+    let discoveredIndices = new Set([0, 1, 2, 3]); // First 4 are always known
+    let bestScore = localStorage.getItem('fm-best-v2') || 0;
     bestScoreEl.innerText = bestScore;
 
-    function initGuide() {
+    function updateGuide() {
         const guideEl = document.getElementById('evolution-guide');
         guideEl.innerHTML = '';
         FRUITS.forEach((fruit, index) => {
+            const isDiscovered = discoveredIndices.has(index);
             const item = document.createElement('div');
-            item.className = 'evolution-item';
-            item.innerHTML = `<img src="${fruit.customImg}" style="width:20px;height:20px;">`;
+            item.className = `evolution-item ${isDiscovered ? 'discovered' : ''}`;
+            
+            const content = isDiscovered 
+                ? `<img src="${fruit.customImg}" style="width:20px;height:20px;">`
+                : `<div style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;background:#eee;border-radius:50%;font-size:10px;font-weight:bold;color:#999">?</div>`;
+            
+            item.innerHTML = content;
             if (index < FRUITS.length - 1) item.innerHTML += `<span class="arrow">▶</span>`;
             guideEl.appendChild(item);
         });
     }
 
     function createWalls() {
-        const wallOptions = { isStatic: true, render: { fillStyle: '#5d4037' }, restitution: 0.2 };
+        const opt = { isStatic: true, render: { fillStyle: '#5d4037' } };
         World.add(world, [
-            Bodies.rectangle(WIDTH/2, HEIGHT + 10, WIDTH, 40, wallOptions),
-            Bodies.rectangle(-10, HEIGHT/2, 20, HEIGHT, wallOptions),
-            Bodies.rectangle(WIDTH + 10, HEIGHT/2, 20, HEIGHT, wallOptions)
+            Bodies.rectangle(WIDTH/2, HEIGHT + 10, WIDTH, 40, opt),
+            Bodies.rectangle(-10, HEIGHT/2, 20, HEIGHT, opt),
+            Bodies.rectangle(WIDTH + 10, HEIGHT/2, 20, HEIGHT, opt)
         ]);
+    }
+
+    function createFruit(x, y, index, isStatic = false, isGold = false) {
+        const fruitDef = isGold ? GOLD_FRUIT : FRUITS[index];
+        const fruit = Bodies.circle(x, y, fruitDef.radius, {
+            restitution: 0.3, friction: 0.1, isStatic, isSensor: isStatic, label: isGold ? 'gold' : 'fruit'
+        });
+        fruit.fruitIndex = index;
+        fruit.isGold = isGold;
+        if (isGold) {
+            fruit.creationTime = Date.now();
+            fruit.lifespan = 10000; // 10 seconds
+        }
+        if (!isStatic) fruit.droppedAt = Date.now();
+        
+        if (!isGold) {
+            discoveredIndices.add(index);
+            updateGuide();
+        }
+        return fruit;
     }
 
     Events.on(render, 'afterRender', () => {
         const context = render.context;
         const bodies = Composite.allBodies(world);
-        
-        if (currentFruit && !isGameOver) {
-            context.beginPath();
-            context.setLineDash([5, 5]);
-            context.moveTo(currentFruit.position.x, SPAWN_Y);
-            context.lineTo(currentFruit.position.x, HEIGHT);
-            context.strokeStyle = 'rgba(93, 64, 55, 0.2)';
-            context.lineWidth = 2;
-            context.stroke();
-            context.setLineDash([]);
-        }
+        const now = Date.now();
 
         bodies.forEach(body => {
-            if (body.fruitIndex !== undefined) {
+            if (body.fruitIndex !== undefined || body.isGold) {
                 const { x, y } = body.position;
-                const angle = body.angle;
-                const fruit = FRUITS[body.fruitIndex];
-                const isActiveInStack = !body.isStatic && body !== currentFruit && body.droppedAt && (Date.now() - body.droppedAt > 1000);
-                const isDanger = isActiveInStack && (y - fruit.radius < LOSS_THRESHOLD_Y);
+                const fruit = body.isGold ? GOLD_FRUIT : FRUITS[body.fruitIndex];
                 
                 context.save();
                 context.translate(x, y);
-                context.rotate(angle);
+                context.rotate(body.angle);
                 
                 context.beginPath();
                 context.arc(0, 0, fruit.radius, 0, Math.PI * 2);
-                
-                if (isDanger) {
-                    context.fillStyle = '#ff3e3e';
-                    context.strokeStyle = '#fff';
-                    context.lineWidth = 4;
-                } else {
-                    context.fillStyle = fruit.color;
-                    context.strokeStyle = 'rgba(255,255,255,0.3)';
-                    context.lineWidth = 3;
-                }
-                
+                context.fillStyle = fruit.color;
                 context.fill();
                 context.stroke();
-
+                
                 if (imgCache[fruit.name]) {
                     const size = fruit.radius * 2.2;
                     context.drawImage(imgCache[fruit.name], -size/2, -size/2, size, size);
                 }
-                
                 context.restore();
+
+                // Draw Gold Countdown
+                if (body.isGold) {
+                    const elapsed = now - body.creationTime;
+                    const remaining = Math.max(0, (body.lifespan - elapsed) / 1000).toFixed(1);
+                    context.fillStyle = "#5d4037";
+                    context.font = "bold 16px Arial";
+                    context.textAlign = "center";
+                    context.fillText(remaining + "s", x, y - fruit.radius - 10);
+                    
+                    if (elapsed >= body.lifespan) {
+                        World.remove(world, body);
+                    }
+                }
             }
         });
 
+        // Danger line
         context.beginPath();
-        context.setLineDash([10, 10]);
+        context.setLineDash([5, 5]);
         context.moveTo(0, LOSS_THRESHOLD_Y);
         context.lineTo(WIDTH, LOSS_THRESHOLD_Y);
-        context.strokeStyle = 'rgba(214, 48, 49, 0.8)';
-        context.lineWidth = 2;
+        context.strokeStyle = "rgba(255,0,0,0.5)";
         context.stroke();
         context.setLineDash([]);
     });
 
-    function createFruit(x, y, index, isStatic = false) {
-        const fruitDef = FRUITS[index];
-        const fruit = Bodies.circle(x, y, fruitDef.radius, {
-            restitution: 0.3, friction: 0.1, isStatic, isSensor: isStatic, label: 'fruit', render: { visible: false }
-        });
-        fruit.fruitIndex = index;
-        if (!isStatic) fruit.droppedAt = Date.now(); 
-        return fruit;
-    }
-
     function spawnCurrentFruit() {
         if (isGameOver) return;
         const index = nextFruitIndex;
-        nextFruitIndex = Math.floor(Math.random() * 4);
-        
-        const nextFruit = FRUITS[nextFruitIndex];
-        nextPreviewEl.innerHTML = `<img src="${nextFruit.customImg}">`;
-
+        nextFruitIndex = Math.floor(Math.random() * 5);
+        nextPreviewEl.innerHTML = `<img src="${FRUITS[nextFruitIndex].customImg}">`;
         currentFruit = createFruit(WIDTH / 2, SPAWN_Y, index, true);
         World.add(world, currentFruit);
         canDrop = true;
@@ -484,67 +467,74 @@
         if (!currentFruit || !canDrop || isGameOver) return;
         canDrop = false;
         currentFruit.isSensor = false;
-        currentFruit.droppedAt = Date.now(); 
         Body.setStatic(currentFruit, false);
+        currentFruit.droppedAt = Date.now();
         currentFruit = null;
         setTimeout(spawnCurrentFruit, 800);
     }
 
-    render.canvas.addEventListener('mousemove', (e) => handleInput(e.clientX));
-    render.canvas.addEventListener('click', (e) => { handleInput(e.clientX); dropFruit(); });
-    render.canvas.addEventListener('touchstart', (e) => handleInput(e.touches[0].clientX), { passive: false });
-    render.canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleInput(e.touches[0].clientX); }, { passive: false });
-    render.canvas.addEventListener('touchend', dropFruit, { passive: false });
-
     Events.on(engine, 'collisionStart', (event) => {
         event.pairs.forEach(({ bodyA, bodyB }) => {
-            if (bodyA.fruitIndex !== undefined && bodyB.fruitIndex !== undefined && bodyA.fruitIndex === bodyB.fruitIndex) {
-                if (bodyA.fruitIndex >= FRUITS.length - 1) return;
-                if (!Composite.get(world, bodyA.id, 'body') || !Composite.get(world, bodyB.id, 'body')) return;
-                const nextIndex = bodyA.fruitIndex + 1;
-                const newX = (bodyA.position.x + bodyB.position.x) / 2;
-                const newY = (bodyA.position.y + bodyB.position.y) / 2;
-                World.remove(world, [bodyA, bodyB]);
-                World.add(world, createFruit(newX, newY, nextIndex));
-                score += FRUITS[nextIndex].score;
-                scoreEl.innerText = score;
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestScoreEl.innerText = bestScore;
-                    localStorage.setItem('fruit-merge-best', bestScore);
+            if (bodyA.fruitIndex !== undefined && bodyA.fruitIndex === bodyB.fruitIndex) {
+                if (Composite.get(world, bodyA.id, 'body') && Composite.get(world, bodyB.id, 'body')) {
+                    const nextIndex = bodyA.fruitIndex + 1;
+                    const newX = (bodyA.position.x + bodyB.position.x) / 2;
+                    const newY = (bodyA.position.y + bodyB.position.y) / 2;
+                    
+                    World.remove(world, [bodyA, bodyB]);
+
+                    if (bodyA.fruitIndex === FRUITS.length - 1) {
+                        // Watermelon + Watermelon = Gold Fruit
+                        World.add(world, createFruit(newX, newY, 0, false, true));
+                        score += 5000;
+                    } else {
+                        World.add(world, createFruit(newX, newY, nextIndex));
+                        score += FRUITS[nextIndex].score;
+                    }
+                    
+                    scoreEl.innerText = score;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestScoreEl.innerText = bestScore;
+                        localStorage.setItem('fm-best-v2', bestScore);
+                    }
                 }
             }
         });
     });
 
+    let gameOverTimer = null;
     Events.on(engine, 'afterUpdate', () => {
-        if (isGameOver) return;
-        const bodies = Composite.allBodies(world).filter(b => b.fruitIndex !== undefined && !b.isStatic && b.droppedAt && (Date.now() - b.droppedAt > 1500));
-        const fruitAboveLine = bodies.some(b => b.position.y - FRUITS[b.fruitIndex].radius < LOSS_THRESHOLD_Y);
-        if (fruitAboveLine) {
-            if (!gameOverCheckStartTime) gameOverCheckStartTime = Date.now();
-            else if (Date.now() - gameOverCheckStartTime > 2000) triggerGameOver();
-        } else gameOverCheckStartTime = null;
+        const bodies = Composite.allBodies(world).filter(b => b.fruitIndex !== undefined && !b.isStatic && (Date.now() - b.droppedAt > 2000));
+        const danger = bodies.some(b => b.position.y - FRUITS[b.fruitIndex].radius < LOSS_THRESHOLD_Y);
+        
+        if (danger && !isGameOver) {
+            if (!gameOverTimer) gameOverTimer = setTimeout(() => {
+                isGameOver = true;
+                overlay.style.display = 'flex';
+                finalScoreText.innerText = `Final Score: ${score}`;
+            }, 2000);
+        } else {
+            clearTimeout(gameOverTimer);
+            gameOverTimer = null;
+        }
     });
-
-    function triggerGameOver() {
-        isGameOver = true;
-        overlay.style.display = 'flex';
-        finalScoreText.innerText = `Final Score: ${score}`;
-    }
 
     function resetGame() {
         World.clear(world, false);
         createWalls();
-        score = 0;
-        scoreEl.innerText = '0';
-        isGameOver = false;
-        gameOverCheckStartTime = null;
-        overlay.style.display = 'none';
+        score = 0; scoreEl.innerText = '0';
+        isGameOver = false; overlay.style.display = 'none';
         spawnCurrentFruit();
+        updateGuide();
     }
 
-    initGuide();
+    render.canvas.addEventListener('mousemove', (e) => handleInput(e.clientX));
+    render.canvas.addEventListener('click', (e) => { handleInput(e.clientX); dropFruit(); });
+    render.canvas.addEventListener('touchstart', (e) => handleInput(e.touches[0].clientX));
+    render.canvas.addEventListener('touchend', dropFruit);
+
+    updateGuide();
     createWalls();
     Render.run(render);
     Runner.run(Runner.create(), engine);
